@@ -1,200 +1,171 @@
-from datetime import datetime
-from django.shortcuts import render, redirect, reverse
-from django.views import View
-from django.views.generic import ListView, DetailView, CreateView, DeleteView, UpdateView
-from django.core.paginator import Paginator
-from django.contrib.auth.mixins import PermissionRequiredMixin
-
+from django.contrib.auth.models import User
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.contrib.auth.decorators import login_required
-from django.core.mail import send_mail, EmailMultiAlternatives
-from django.template.loader import render_to_string
-from django.core.cache import cache
+from django.views.generic import ListView, UpdateView, CreateView, DetailView, DeleteView, FormView
+from django.shortcuts import redirect
+from django.http import HttpResponseRedirect, HttpResponse
+from django.urls import reverse
 
-from .models import Post, Category, PostCategory
-from .filters import PostFilter
-from .forms import PostForm
+from .models import Post, Reply
+from .forms import PostForm, ReplyForm, RepliesFilterForm
+from .tasks import reply_send_email, reply_accept_send_email
 
 
-
-class NewsList(ListView):
+class PostList(ListView):
     model = Post
-    context_object_name = 'news_list'
-    template_name = 'news/news.html'
-    ordering = ['-d_time']
-    paginate_by = 5
-    form_class = PostForm
-
-    def get_context_data(self, *args, **kwargs):
-        context = super().get_context_data(*args, **kwargs)
-        context['time_now'] = datetime.utcnow()  # добавим переменную текущей даты time_now
-        context['filter'] = PostFilter(self.request.GET, queryset=self.get_queryset())
-
-        context['categories'] = Category.objects.all()
-        context['form'] = PostForm
-        return context
-
-    def post(self, request, *args, **kwargs):
-        form = self.form_class(request.POST)  # создаём новую форму, забиваем в неё данные из POST-запроса
-
-        if form.is_valid():  # если пользователь ввёл всё правильно и нигде не ошибся, то сохраняем новый товар
-            form.save()
-
-        return super().get(request, *args, **kwargs)
+    template_name = 'index.html'
+    context_object_name = 'posts'
 
 
-class Search(ListView):
+class PostDetails(DetailView):
     model = Post
-    context_object_name = 'search'
-    template_name = 'news/search.html'
-    paginate_by = 5
-
-    def get_filter(self):
-        return PostFilter(self.request.GET, queryset=self.get_queryset())
-
-    def get_context_data(self, *args, **kwargs):
-        context = super().get_context_data(*args, **kwargs)
-        context['time_now'] = datetime.utcnow()
-        context['categories'] = Category.objects.all()
-        # context['publication'] = PostCategory.objects.get(post=self.kwargs['pk']).category
-        context['filter'] = PostFilter(self.request.GET, queryset=self.get_queryset())
-
-
-        return context
-
-class NewsDetail(DetailView):
-    model = Post
-    context_object_name = 'news_detail'
-    template_name = 'news/news_detail.html'
+    template_name = 'post_details.html'
+    context_object_name = 'post'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['time_now'] = datetime.utcnow()  # добавим переменную текущей даты time_now
-        context['category'] = Category.objects.all()
-        # publication_id = self.kwargs.get('pk')
-        # print('publication_id = ', self.kwargs.get('pk'))
+        if Reply.objects.filter(author_id=self.request.user.id).filter(post_id=self.kwargs.get('pk')):
+            context['respond'] = "Откликнулся"
+        elif self.request.user == Post.objects.get(pk=self.kwargs.get('pk')).author:
+            context['respond'] = "Мое_объявление"
         return context
 
-# D8.4
-    def get_object(self, *args, **kwargs): # переопределяем метод получения объекта, как ни странно
-        obj = cache.get(f'news-{self.kwargs["pk"]}', None) # кэш очень похож на словарь, и метод get действует также. Он забирает значение по ключу, если его нет, то забирает None.
-        print('OBJ', obj)
-        # если объекта нет в кэше, то получаем его и записываем в кэш
-        if not obj:
-            obj = super().get_object(*args, **kwargs)
-            cache.set(f'news-{self.kwargs["pk"]}', obj)
-            print('CACHE', f'news-{self.kwargs["pk"]}')
 
-        return obj
+class PostCreate(LoginRequiredMixin, CreateView):
+    model = Post
+    template_name = 'post_create.html'
+    form_class = PostForm
 
-
-# D6 подписка
-class CategoryView(ListView):
-    model = Category
-    template_name = 'news/post_category.html'
-    context_object_name = 'post_category'
+    def dispatch(self, request, *args, **kwargs):
+        if not self.request.user.has_perm('board.post_add'):
+            return HttpResponseRedirect(reverse('account_profile'))
+        return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-
         return context
 
+    def form_valid(self, form):
+        post = form.save(commit=False)
+        post.author = User.objects.get(id=self.request.user.id)
+        post.save()
+        return redirect(f'/post/{post.id}')
 
-# дженерик для создания объекта. Надо указать только имя шаблона и класс формы, который мы написали в прошлом юните. Остальное он сделает за вас
-class NewsAdd(PermissionRequiredMixin, CreateView):
-    permission_required = ('news.add_post',)
-    context_object_name = 'news_create'
-    template_name = 'news/news_create.html'
+
+class PostEdit(PermissionRequiredMixin, UpdateView):
+    permission_required = 'board.post_change'
+    template_name = 'post_edit.html'
     form_class = PostForm
-    success_url = '/news/'
+    success_url = '/create/'
 
+    def dispatch(self, request, *args, **kwargs):
+        author = Post.objects.get(pk=self.kwargs.get('pk')).author.username
+        if self.request.user.username == 'admin' or self.request.user.username == author:
+            return super().dispatch(request, *args, **kwargs)
+        else:
+            return HttpResponse("Редактировать объявление может только его автор")
 
-# дженерик для редактирования объекта
-class NewsEdit(PermissionRequiredMixin, UpdateView):
-    context_object_name = 'news_edit'
-    template_name = 'news/news_create.html'
-    form_class = PostForm
-    permission_required = ('news.change_post',)
-
-    # метод get_object мы используем вместо queryset, чтобы получить информацию об объекте, который мы собираемся редактировать
     def get_object(self, **kwargs):
         id = self.kwargs.get('pk')
         return Post.objects.get(pk=id)
 
+    def form_valid(self, form):
+        form.save()
+        return HttpResponseRedirect('/post/' + str(self.kwargs.get('pk')))
 
-# дженерик для удаления товара
-class NewsDelete(PermissionRequiredMixin, DeleteView):
-    permission_required = ('news.delete_post',)
-    template_name = 'news/news_delete.html'
-    context_object_name = 'news_delete'
+
+class PostDelete(PermissionRequiredMixin, DeleteView):
+    permission_required = 'board.post_delete'
+    template_name = 'post_delete.html'
     queryset = Post.objects.all()
-    success_url = '/news/'
+    success_url = '/index'
+
+    def dispatch(self, request, *args, **kwargs):
+        author = Post.objects.get(pk=self.kwargs.get('pk')).author.username
+        if self.request.user.username == 'admin' or self.request.user.username == author:
+            return super().dispatch(request, *args, **kwargs)
+        else:
+            return HttpResponse("Удалить объявление может только его автор")
+
+
+title = str("")
+
+
+class ReplyList(LoginRequiredMixin, ListView):
+    model = Reply
+    template_name = 'replies.html'
+    context_object_name = 'responses'
+
+    def get_context_data(self, **kwargs):
+        context = super(ReplyList, self).get_context_data(**kwargs)
+        global title
+        """
+        Далее в условии - если пользователь попал на страницу через ссылку из письма, в которой содержится
+        ID поста для фильтра - фильтр работает по этому ID
+        """
+        if self.kwargs.get('pk') and Post.objects.filter(id=self.kwargs.get('pk')).exists():
+            title = str(Post.objects.get(id=self.kwargs.get('pk')).title)
+            print(title)
+        context['form'] = RepliesFilterForm(self.request.user, initial={'title': title})
+        context['title'] = title
+        if title:
+            post_id = Post.objects.get(title=title)
+            context['filter_replies'] = list(Reply.objects.filter(post_id=post_id).order_by('-d_time'))
+            context['replies_post_id'] = post_id.id
+        else:
+            context['filter_replies'] = list(Reply.objects.filter(post_id__author_id=self.request.user).order_by('-d_time'))
+        context['myreplies'] = list(Reply.objects.filter(author_id=self.request.user).order_by('-d_time'))
+        return context
+
+    def post(self, request, *args, **kwargs):
+        global title
+        title = self.request.POST.get('title')
+        """
+        Далее в условии - При событии POST (если в пути открытой страницы есть ID) - нужно перезайти уже без этого ID
+        чтобы фильтр отрабатывал запрос уже из формы, так как ID, если он есть - приоритетный 
+        """
+        if self.kwargs.get('pk'):
+            return HttpResponseRedirect('/replies')
+        return self.get(request, *args, **kwargs)
 
 
 @login_required
-def add_subscribe(request, pk):
-
-    user = request.user
-    id_u = user.id
-    category = Category.objects.get(id=pk)
-    print(f'''PK =  "{pk}", USER:  "{user}", user_id: "{id_u}", category: "{category}"''')
-
-    qs = category.subscribers.all()
-    print('QS= ', qs)
-    print('ПОДПИСАН НА КАТЕГОРИЮ ? ', qs.filter(username=user).exists())
-    # print(category_object)
-    # print(Category.objects.all().filter(postcategory=category))
-    # .Post.category.category.subscribers.objects.all().user.username
-    if not qs.filter(username=user).exists():
-        category.subscribers.add(user)
-        print('Пользователь', user, 'подписан на категорию:', category)
+def reply_accept(request, **kwargs):
+    if request.user.is_authenticated:
+        reply = Reply.objects.get(id=kwargs.get('pk'))
+        reply.status = True
+        reply.save()
+        reply_accept_send_email.delay(reply_id=reply.id)
+        return HttpResponseRedirect('/replies')
     else:
-        category.subscribers.remove(user)
-        print('Пользователь', user, 'отписался от категории:', category)
+        return HttpResponseRedirect('/accounts/login')
 
-    # print('ПОДПИСЧИКИ: ', category.subscribers.all())
 
-    try:
-        email = category.subscribers.get(id=id_u).email
-        print(f'''email: "{email}" Можно отправить уведомление''')
-        send_mail(
-            subject=f'News Portal: подписка на обновления категории {category}',
-            message=f'«{request.user}», вы подписались на обновление категории: «{category}».',
-            from_email='apractikant@yandex.ru',
-            recipient_list=[f'{email}', ],
-        )
+@login_required
+def reply_delete(request, **kwargs):
+    if request.user.is_authenticated:
+        reply = Reply.objects.get(id=kwargs.get('pk'))
+        reply.delete()
+        return HttpResponseRedirect('/replies')
+    else:
+        return HttpResponseRedirect('/accounts/login')
 
-    except Exception as n:
-        print('nnnnnnnnnnnnnnnnnnnnn')
-    # Category.objects.get(pk=pk).subscribers.add(request.user)
-    # print(category.subscribers.all())
-    return redirect('/')
 
-#
-# @login_required
-# def del_subscribe(request, **kwargs):
-#     pk = request.GET.get('pk', )
-#     print('Пользователь', request.user, 'удален из подписчиков категории:', Category.objects.get(pk=pk))
-#     Category.objects.get(pk=pk).subscribers.remove(request.user)
-#     return redirect('/news/')
-#
-#
-#
-# @login_required
-# def subscribe_category(request, pk):
-#     user = request.user
-#     print('1', user)
-#     category = Category.objects.get(id=pk)
-#     print('2', category)
-#     category.subscribers.add(user)
-#     # print('3', category.subscribers.get())
-#     id_u = request.user.id
-#     print('id_u', id_u)
-#     email = category.subscribers.get(id=id_u).email
-#     print('email', email)
-#     # send_mail(
-#     #     subject=f'News Portal: подписка на обновления категории {category}',
-#     #     message=f'«{request.user}», вы подписались на обновление категории: «{category}».',
-#     #     from_email='apractikant@yandex.ru',
-#     #     recipient_list=[f'{email}', ],
-#     # )
-#     return redirect('/news')
+class ReplyView(LoginRequiredMixin, CreateView):
+    model = Reply
+    template_name = 'reply.html'
+    form_class = ReplyForm
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        return context
+
+    def form_valid(self, form):
+        reply = form.save(commit=False)
+        reply.author = User.objects.get(id=self.request.user.id)
+        reply.post = Post.objects.get(id=self.kwargs.get('pk'))
+        reply.save()
+        reply_send_email.delay(reply_id=reply.id)
+        return redirect(f'/post/{self.kwargs.get("pk")}')
+
+
