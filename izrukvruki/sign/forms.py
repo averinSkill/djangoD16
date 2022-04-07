@@ -16,7 +16,7 @@ class BasicSignupForm(SignupForm):
 
     def save(self, request):
         user = super(BasicSignupForm, self).save(request)
-        auth_group = Group.objects.get(name='AuthUsers')
+        auth_group = Group.objects.get(name='authors')
         auth_group.user_set.add(user)
         return user
 

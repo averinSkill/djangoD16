@@ -37,7 +37,7 @@ class PostCreate(LoginRequiredMixin, CreateView):
     form_class = PostForm
 
     def dispatch(self, request, *args, **kwargs):
-        if not self.request.user.has_perm('board.post_add'):
+        if not self.request.user.has_perm('board.add_post'):
             return HttpResponseRedirect(reverse('sign_profile'))
         return super().dispatch(request, *args, **kwargs)
 
@@ -53,7 +53,7 @@ class PostCreate(LoginRequiredMixin, CreateView):
 
 
 class PostEdit(PermissionRequiredMixin, UpdateView):
-    permission_required = 'board.post_change'
+    permission_required = 'board.change_post'
     template_name = 'post_edit.html'
     form_class = PostForm
     success_url = '/create/'
@@ -75,7 +75,7 @@ class PostEdit(PermissionRequiredMixin, UpdateView):
 
 
 class PostDelete(PermissionRequiredMixin, DeleteView):
-    permission_required = 'board.post_delete'
+    permission_required = 'board.delete_post'
     template_name = 'post_delete.html'
     queryset = Post.objects.all()
     success_url = '/index'
@@ -120,10 +120,7 @@ class ReplyList(LoginRequiredMixin, ListView):
     def post(self, request, *args, **kwargs):
         global title
         title = self.request.POST.get('title')
-        """
-        Далее в условии - При событии POST (если в пути открытой страницы есть ID) - нужно перезайти уже без этого ID
-        чтобы фильтр отрабатывал запрос уже из формы, так как ID, если он есть - приоритетный 
-        """
+
         if self.kwargs.get('pk'):
             return HttpResponseRedirect('/replies')
         return self.get(request, *args, **kwargs)

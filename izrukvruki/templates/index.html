@@ -8,7 +8,7 @@
         {% for post in posts %}
             <a href="/post/{{ post.id }}" style="font-size: 20px;"><b>{{ post.title }}</b></a><br>
             <span style="font-size: 12px;"><b>Автор:  {{ post.author }} |
-                Дата публикации: {{ post.dateCreation|date:'d.M.Y' }} г.</b></span><br><br>
+                Дата публикации: {{ post.d_time|date:'d.M.Y' }} г.</b></span><br><br>
 
 
 
@@ -20,6 +20,6 @@
 
     {% if user.is_authenticated %}
         <br><br><br>
-        <a class="btn btn-secondary" href="{% url 'create_ad' %}" role="button">Добавить новое объявление</a>
+        <a class="btn btn-secondary" href="{% url 'post_create' %}" role="button">Добавить новое объявление</a>
     {% endif %}
 {% endblock content %}

@@ -8,7 +8,7 @@ from .views import PostList, PostCreate, PostDetails, PostEdit, PostDelete, Repl
 urlpatterns = [
   path('index', PostList.as_view(), name='index'),
   path('post/<int:pk>', PostDetails.as_view()),
-  path('create_ad', PostCreate.as_view(), name='create_ad'),
+  path('post_create', PostCreate.as_view(), name='post_create'),
   path('post/<int:pk>/edit', PostEdit.as_view()),
   path('post/<int:pk>/delete', PostDelete.as_view()),
   path('replies', ReplyList.as_view(), name='replies'),

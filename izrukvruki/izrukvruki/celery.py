@@ -2,9 +2,9 @@ import os
 from celery import Celery
 from celery.schedules import crontab
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'MMORPG_board.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'izrukvruki.settings')
 
-app = Celery('MMORPG_board')
+app = Celery('izrukvruki')
 app.config_from_object('django.conf:settings', namespace='CELERY')
 app.conf.timezone = 'Europe/Moscow'
 app.autodiscover_tasks()
