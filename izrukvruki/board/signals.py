@@ -4,7 +4,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.core.mail import mail_managers
 
-from .models import Post, Category, User
+from .models import Post, Reply, User
 
 # register signal
 # reply created signal
@@ -12,10 +12,10 @@ from .models import Post, Category, User
 
 # D6.4
 # created - булевая, есть или нет объект в БД
-@receiver(post_save, sender=Post)
+@receiver(post_save, sender=Reply)
 def notify_managers_appointment(sender, instance, created, **kwargs):
     if created:
-        subject = f'Новая статья{instance.title}'
+        subject = f'Новый отклик{instance.title}'
     else:
         subject = f'Изменения в статье  {instance.title} {instance.d_time.strftime("%d %m %Y")}'
     recipient_list = []
