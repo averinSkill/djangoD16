@@ -34,4 +34,4 @@ class Reply(models.Model):
     text = models.TextField(verbose_name='Текст')
     status = models.BooleanField(default=False)
     d_time = models.DateTimeField(auto_now_add=True)
-+
+
