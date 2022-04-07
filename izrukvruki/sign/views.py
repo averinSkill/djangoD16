@@ -36,14 +36,15 @@ def confirmation_code(request):
         recipient_list=[request.user.email, ],
     )
     print(f"подтверждение регистрации отправлено на {request.user.email}")
-    return HttpResponseRedirect(reverse('account_profile'))
+    return HttpResponseRedirect(reverse('sign_profile'))
 
 
 class ProfileUserView(LoginRequiredMixin, FormView):
-    template_name = 'account/profile.html'
+    template_name = 'sign/profile.html'
     form_class = ConfirmationCodeForm
 
     def dispatch(self, request, *args, **kwargs):
+        print("============", self.request.user)
         if CustomUser.objects.filter(user=self.request.user).exists():
             return super().dispatch(request, *args, **kwargs)
         return HttpResponseRedirect(reverse('confirmation_code'))
@@ -54,7 +55,7 @@ class ProfileUserView(LoginRequiredMixin, FormView):
             Group.objects.get(name='AuthUsers').user_set.add(self.request.user)
         else:
             code = "Введен неверный код подтверждения"
-        return HttpResponseRedirect(reverse('account_profile'))
+        return HttpResponseRedirect(reverse('sign_profile'))
 
     def get_context_data(self, **kwargs):
         context = super(ProfileUserView, self).get_context_data(**kwargs)
@@ -69,8 +70,8 @@ class ProfileUserView(LoginRequiredMixin, FormView):
 class UpdateProfile(LoginRequiredMixin, UpdateView):
     model = User
     form_class = BaseRegisterForm
-    success_url = '/accounts/profile'
-    template_name = 'account/update_profile.html'
+    success_url = '/sign/profile'
+    template_name = 'sign/update.html'
 
     def setup(self, request, *args, **kwargs):
         self.user_id = request.user.pk

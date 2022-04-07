@@ -118,7 +118,7 @@ ROOT_URLCONF = 'izrukvruki.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')],
+        'DIRS': [os.path.join(BASE_DIR, 'templates'), os.path.join(BASE_DIR, 'sign', 'templates')],
 # 'DIRS': [os.path.join(BASE_DIR, 'templates'), os.path.join(BASE_DIR, 'accounts', 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
@@ -200,13 +200,13 @@ AUTHENTICATION_BACKENDS = [
     'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
-LOGIN_URL = '/accounts/login/'
+LOGIN_URL = '/sign/login/'
 # При корректных данных для входа, пользователь перенаправляется на страницу, указанною по данному пути
 # страница, куда перенаправляется пользователь после успешного входа на сайт, в данном случае корневая страница сайта
 LOGIN_REDIRECT_URL = '/'
 
-ACCOUNT_SIGNUP_REDIRECT_URL = "/accounts/profile"
-ACCOUNT_FORMS = {'signup': 'sign.models.BasicSignupForm'}
+ACCOUNT_SIGNUP_REDIRECT_URL = "/sign/profile"
+# ACCOUNT_FORMS = {'signup': 'sign.forms.BasicSignupForm'}
 
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_UNIQUE_EMAIL = True

@@ -38,7 +38,7 @@ class PostCreate(LoginRequiredMixin, CreateView):
 
     def dispatch(self, request, *args, **kwargs):
         if not self.request.user.has_perm('board.post_add'):
-            return HttpResponseRedirect(reverse('account_profile'))
+            return HttpResponseRedirect(reverse('sign_profile'))
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
@@ -138,7 +138,7 @@ def reply_accept(request, **kwargs):
         reply_accept_send_email.delay(reply_id=reply.id)
         return HttpResponseRedirect('/replies')
     else:
-        return HttpResponseRedirect('/accounts/login')
+        return HttpResponseRedirect('/sign/login')
 
 
 @login_required
@@ -148,7 +148,7 @@ def reply_delete(request, **kwargs):
         reply.delete()
         return HttpResponseRedirect('/replies')
     else:
-        return HttpResponseRedirect('/accounts/login')
+        return HttpResponseRedirect('/sign/login')
 
 
 class ReplyView(LoginRequiredMixin, CreateView):
