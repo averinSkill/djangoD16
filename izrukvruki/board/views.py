@@ -8,7 +8,7 @@ from django.urls import reverse
 
 from .models import Post, Reply
 from .forms import PostForm, ReplyForm, RepliesFilterForm
-from .tasks import reply_send_email, reply_accept_send_email
+# from .tasks import reply_send_email, reply_accept_send_email
 
 
 class PostList(ListView):
@@ -28,6 +28,7 @@ class PostDetails(DetailView):
             context['respond'] = "Откликнулся"
         elif self.request.user == Post.objects.get(pk=self.kwargs.get('pk')).author:
             context['respond'] = "Мое_объявление"
+        print("PostDetails===", context)
         return context
 
 
@@ -132,7 +133,7 @@ def reply_accept(request, **kwargs):
         reply = Reply.objects.get(id=kwargs.get('pk'))
         reply.status = True
         reply.save()
-        reply_accept_send_email.delay(reply_id=reply.id)
+        # reply_accept_send_email.delay(reply_id=reply.id)
         return HttpResponseRedirect('/replies')
     else:
         return HttpResponseRedirect('/sign/login')
@@ -162,7 +163,7 @@ class ReplyView(LoginRequiredMixin, CreateView):
         reply.author = User.objects.get(id=self.request.user.id)
         reply.post = Post.objects.get(id=self.kwargs.get('pk'))
         reply.save()
-        reply_send_email.delay(reply_id=reply.id)
+        # reply_send_email.delay(reply_id=reply.id)
         return redirect(f'/post/{self.kwargs.get("pk")}')
 
 

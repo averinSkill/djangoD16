@@ -1,6 +1,6 @@
 {% extends 'default.html' %}
 {% load bootstrap4 %}
-{% block title %}Responses{% endblock title %}
+{% block title %}Replies{% endblock title %}
 
 {% block content %}
     <br>
@@ -12,16 +12,16 @@
 	</form><br>
     {% if title %}
         <h3>Oтклики на мое объявление</h3>
-        <a href="/post/{{ response_post_id }}" style="font-size: 20px;"><b>{{ title }}:</b></a><br>
-        {% if filter_responses %}
-            {% for response in filter_responses %}
-                <a><b>Отклик: </b></a>{{ response.text }}<br>
-                <span style="font-size: 12px;"><b>Автор отклика: {{ response.author.username }} |
-                    дата публикации отклика: {{ response.dateCreation|date:'d.M.Y' }} г.</b></span><br>
-                {% if response.status == False %}
-                    <a href="/response/accept/{{ response.id }}" style="font-size: 12px; color:green"><b>принять</b></a>
+        <a href="/post/{{ reply_post_id }}" style="font-size: 20px;"><b>{{ title }}:</b></a><br>
+        {% if filter_replies %}
+            {% for reply in filter_replies %}
+                <a><b>Отклик: </b></a>{{ reply.title }}<br>
+                <span style="font-size: 12px;"><b>Автор отклика: {{ reply.author.username }} |
+                    дата публикации отклика: {{ reply.d_time|date:'d.M.Y' }} г.</b></span><br>
+                {% if reply.status == False %}
+                    <a href="/reply/accept/{{ reply.id }}" style="font-size: 12px; color:green"><b>принять</b></a>
                     <a>&nbsp;&nbsp;&nbsp;</a>
-                    <a href="/response/delete/{{ response.id }}" style="font-size: 12px; color:red"><b>удалить</b></a>
+                    <a href="/reply/delete/{{ reply.id }}" style="font-size: 12px; color:red"><b>удалить</b></a>
                 {% else %}
                     <a style="font-size: 14px; color:green"><b>отклик принят</b></a>
                 {% endif %}
