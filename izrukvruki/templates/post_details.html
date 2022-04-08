@@ -23,11 +23,11 @@
     <br><br>
         {% if respond == "Откликнулся" %}
             <a style="color:red">Вы откликнулись на это объявление.</a><br>
-            <a href="{% url 'responses' %}">Посмотреть свои отклики</a>
+            <a href="{% url 'replies' %}">Посмотреть свои отклики</a>
         {% elif respond == "Мое_объявление" %}
             <a style="color:red">Вы не можете откликнуться на свое объявление.</a><br>
         {% else %}
-            <a class="btn btn-secondary" href="/respond/{{ post.id }}" role="button">Откликнуться</a>
+            <a class="btn btn-secondary" href="/reply/{{ post.id }}" role="button">Откликнуться</a>
         {% endif %}
     {% endif %}
     <br><br>
